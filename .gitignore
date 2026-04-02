@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Environment
+.env
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.prof
+
+# Vosk model
+vosk-model/
+
+# Misc
+*.log
+*.bak
+*.swp
+.DS_Store
+Thumbs.db
