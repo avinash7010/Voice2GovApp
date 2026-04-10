@@ -21,30 +21,30 @@ class TestTextClassifier:
 
     def test_electricity_classification(self):
         text = "Street light on the main road has been not working for two days"
-        category = self.clf._keyword_classify(text.lower())
+        category, _ = self.clf._keyword_classify(text.lower())
         assert category == "electricity"
 
     def test_water_classification(self):
         text = "Water pipe leakage flooding the street with dirty contaminated water"
-        category = self.clf._keyword_classify(text.lower())
+        category, _ = self.clf._keyword_classify(text.lower())
         assert category == "water"
 
     def test_road_classification(self):
         text = "Big pothole on the highway causing accidents near the flyover"
-        category = self.clf._keyword_classify(text.lower())
+        category, _ = self.clf._keyword_classify(text.lower())
         assert category == "road"
 
     def test_garbage_classification(self):
         text = "Garbage not collected for a week, trash bin overflowing near park"
-        category = self.clf._keyword_classify(text.lower())
-        assert category == "garbage"
+        category, _ = self.clf._keyword_classify(text.lower())
+        assert category == "sanitation"
 
     def test_unknown_falls_back_to_other(self):
         text = "I have a general enquiry about the government office"
-        category = self.clf._keyword_classify(text.lower())
+        category, _ = self.clf._keyword_classify(text.lower())
         # 'other' expected when no keyword matches well
         # (minor: 'government' not in any list)
-        assert category in {"other", "electricity", "water", "road", "garbage"}
+        assert category in {"other", "electricity", "water", "road", "sanitation"}
 
 
 # ===========================================================================
@@ -64,7 +64,7 @@ class TestDepartmentRouting:
         assert "Highway" in dept
 
     def test_garbage_routes_to_municipality(self):
-        dept = DEPARTMENT_MAP["garbage"]
+        dept = DEPARTMENT_MAP["sanitation"]
         assert "Municipality" in dept
 
     def test_other_routes_to_general(self):
@@ -83,7 +83,8 @@ class TestPriorityEngine:
         assert p == "low"
 
     def test_medium_priority_few_votes(self):
-        p = self.engine.calculate("Water leak on street", votes=6, similar_count=0)
+        # 20+ votes gives score 2+ → "medium"
+        p = self.engine.calculate("Water leak on street", votes=20, similar_count=0)
         assert p in {"medium", "high"}
 
     def test_high_priority_many_votes(self):

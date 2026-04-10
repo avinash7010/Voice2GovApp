@@ -13,7 +13,6 @@ import logging
 import os
 import time
 import uuid
-import base64
 from pathlib import Path
 from typing import Optional
 
@@ -108,14 +107,12 @@ class FileStorageService:
         self,
         file: Optional[UploadFile] = None,
         file_bytes: Optional[bytes] = None,
-        file_b64: Optional[str] = None,
         original_name: str = "image.jpg",
     ) -> dict:
         """
         Accept file from:
         - UploadFile (multipart form)
         - raw bytes
-        - base64 string (legacy support)
 
         Returns { "url": str, "provider": str }
         """
@@ -125,11 +122,6 @@ class FileStorageService:
             original_name = file.filename or original_name
         elif file_bytes is not None:
             content = file_bytes
-        elif file_b64 is not None:
-            # Strip data-URI prefix
-            if "," in file_b64:
-                _, file_b64 = file_b64.split(",", 1)
-            content = base64.b64decode(file_b64)
         else:
             raise ValueError("No file source provided")
 

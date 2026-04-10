@@ -16,8 +16,11 @@ from __future__ import annotations
 import base64
 import io
 import logging
+import os
 import re
 from typing import Optional, Tuple
+
+from app.models.complaint_category import ComplaintCategory
 
 logger = logging.getLogger(__name__)
 
@@ -25,33 +28,33 @@ logger = logging.getLogger(__name__)
 # Category → Department mapping
 # ---------------------------------------------------------------------------
 DEPARTMENT_MAP: dict[str, str] = {
-    "electricity": "EB (Electricity Board)",
-    "water":       "Water Department",
-    "road":        "Highways Department",
-    "garbage":     "Municipality",
-    "other":       "General Administration",
+    ComplaintCategory.ELECTRICITY.value: "EB (Electricity Board)",
+    ComplaintCategory.WATER.value: "Water Department",
+    ComplaintCategory.ROAD.value: "Highways Department",
+    ComplaintCategory.SANITATION.value: "Municipality",
+    ComplaintCategory.OTHER.value: "General Administration",
 }
 
 # ---------------------------------------------------------------------------
 # Keyword patterns per category (used as fallback when spaCy is unavailable)
 # ---------------------------------------------------------------------------
 CATEGORY_KEYWORDS: dict[str, list[str]] = {
-    "electricity": [
+    ComplaintCategory.ELECTRICITY.value: [
         "electricity", "power", "light", "lamp", "voltage", "outage",
         "blackout", "transformer", "electric", "wiring", "socket",
         "streetlight", "street light", "pole", "power cut", "no power",
     ],
-    "water": [
+    ComplaintCategory.WATER.value: [
         "water", "pipe", "leakage", "leak", "drain", "sewage",
         "flood", "drainage", "tap", "supply", "contaminated", "dirty water",
         "water supply", "no water", "pipeline",
     ],
-    "road": [
+    ComplaintCategory.ROAD.value: [
         "road", "pothole", "accident", "highway", "footpath", "pavement",
         "traffic", "signal", "speed breaker", "manhole", "bridge",
         "road damage", "broken road", "street",
     ],
-    "garbage": [
+    ComplaintCategory.SANITATION.value: [
         "garbage", "trash", "waste", "dumping", "litter", "bin",
         "sanitation", "stench", "smell", "mosquito", "hygiene",
         "garbage dump", "waste management",
@@ -98,7 +101,7 @@ class TextClassifier:
                 cls._nlp = spacy.load("en_core_web_sm")
                 # Pre-compute reference docs for similarity
                 cls._docs = {
-                    cat: cls._nlp(" ".join(kws))
+                    cat: cls._nlp(" ".join(kws))    
                     for cat, kws in CATEGORY_KEYWORDS.items()
                 }
                 logger.info("✅  spaCy model loaded (en_core_web_sm)")
@@ -147,7 +150,7 @@ class TextClassifier:
 
         best = max(scores, key=lambda c: scores[c])
         if scores[best] == 0:
-            return "other", 0.0
+            return ComplaintCategory.OTHER.value, 0.0
 
         confidence = round(scores[best] / total_kws[best], 4)
         return best, confidence
@@ -304,7 +307,9 @@ class VoskSTT:
     """
 
     _model = None
-    MODEL_PATH = "vosk-model"
+    import os
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    MODEL_PATH = os.path.join(BASE_DIR, "vosk-model")
 
     @classmethod
     def _load_model(cls):
@@ -353,7 +358,6 @@ vosk_stt         = VoskSTT()
 # ===========================================================================
 async def classify_and_route(
     description: str,
-    image_b64: Optional[str] = None,
     votes: int = 0,
     similar_count: int = 0,
 ) -> dict:
@@ -361,13 +365,11 @@ async def classify_and_route(
     Main AI pipeline entry point.
 
     :param description:    Complaint text (may include transcribed speech).
-    :param image_b64:      Optional base64 image.
     :param votes:          Current vote count (for priority recalculation).
     :param similar_count:  Count of similar open complaints.
     :returns: {
         category, department, priority,
-        confidence, is_urgent, urgency_keywords,
-        image_valid, image_message
+        confidence, is_urgent, urgency_keywords
     }
     """
     # 1. Classify category with confidence
@@ -376,13 +378,10 @@ async def classify_and_route(
     # 2. Map to department
     department = DEPARTMENT_MAP.get(category, "General Administration")
 
-    # 3. Validate image
-    image_valid, image_message = image_processor.validate_and_process(image_b64 or "")
-
-    # 4. Detect urgency
+    # 3. Detect urgency
     is_urgent, urgency_keywords = urgency_detector.detect(description)
 
-    # 5. Calculate priority (urgency-aware)
+    # 4. Calculate priority (urgency-aware)
     priority = priority_engine.calculate(description, votes=votes, similar_count=similar_count)
 
     return {
@@ -392,6 +391,4 @@ async def classify_and_route(
         "confidence":       confidence,
         "is_urgent":        is_urgent,
         "urgency_keywords": urgency_keywords,
-        "image_valid":      image_valid,
-        "image_message":    image_message,
     }

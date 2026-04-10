@@ -18,9 +18,9 @@ async def connect_to_mongo() -> None:
     global _client, _db
     _client = AsyncIOMotorClient(
         settings.MONGO_URL,
-        maxPoolSize=20,
-        minPoolSize=5,
-        serverSelectionTimeoutMS=5000,
+        maxPoolSize=settings.MONGO_MAX_POOL_SIZE,
+        minPoolSize=settings.MONGO_MIN_POOL_SIZE,
+        serverSelectionTimeoutMS=settings.MONGO_SERVER_SELECTION_TIMEOUT_MS,
     )
     _db = _client[settings.DATABASE_NAME]
 
@@ -84,6 +84,8 @@ async def _create_indexes() -> None:
     # geo clustering index
     await db["complaints"].create_index("clusterId")
     await db["complaints"].create_index([("location.lat", 1), ("location.lng", 1)])
+    await db["complaints"].create_index("parentComplaintId")
+    await db["complaints"].create_index("isDuplicate")
 
     # compound index for filtered + sorted queries
     await db["complaints"].create_index([("status", 1), ("createdAt", -1)])

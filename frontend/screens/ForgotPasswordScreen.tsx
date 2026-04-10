@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { type Href, useRouter } from "expo-router";
 import { useState } from "react";
 import {
     ActivityIndicator,
@@ -11,16 +11,13 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import {
-    BorderRadius,
-    Colors,
-    Spacing,
-    Typography,
-} from "../constants/theme";
+import { BorderRadius, Colors, Spacing, Typography } from "../constants/theme";
+import { ScreenUI } from "../constants/ui";
 
 export default function ForgotPasswordScreen() {
-  const navigation = useNavigation<any>();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +38,7 @@ export default function ForgotPasswordScreen() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       Alert.alert("Success", "OTP sent to your email!");
-      navigation.navigate("OTPVerificationScreen", { email });
+      router.push("/(auth)/login" as Href);
     } catch {
       Alert.alert("Error", "Failed to send OTP. Please try again.");
     } finally {
@@ -50,11 +47,11 @@ export default function ForgotPasswordScreen() {
   };
 
   const handleBackToLogin = () => {
-    navigation.navigate("LoginScreen");
+    router.push("/(auth)/login" as Href);
   };
 
   return (
-    <View style={styles.wrapper}>
+    <SafeAreaView style={styles.wrapper} edges={["bottom"]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -80,13 +77,13 @@ export default function ForgotPasswordScreen() {
               <MaterialCommunityIcons
                 name="email"
                 size={20}
-                color={Colors.textTertiary}
+                color={ScreenUI.textSecondary}
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="e.g. name@agency.gov"
-                placeholderTextColor={Colors.textDisabled}
+                placeholderTextColor={ScreenUI.textSecondary}
                 keyboardType="email-address"
                 value={email}
                 onChangeText={setEmail}
@@ -104,6 +101,7 @@ export default function ForgotPasswordScreen() {
             ]}
             onPress={handleSendOTP}
             disabled={loading}
+            activeOpacity={0.9}
           >
             {loading ? (
               <ActivityIndicator color={Colors.white} />
@@ -120,27 +118,14 @@ export default function ForgotPasswordScreen() {
           </View>
         </View>
       </ScrollView>
-
-      {/* Footer Links */}
-      <View style={styles.footer}>
-        <TouchableOpacity>
-          <Text style={styles.footerLink}>Privacy Policy</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.footerLink}>Civic Standards</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.footerLink}>Support</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: ScreenUI.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -150,12 +135,17 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing["2xl"],
+    borderRadius: BorderRadius.xl,
+    padding: 18,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: ScreenUI.border,
     width: "100%",
     alignSelf: "center",
+    shadowColor: ScreenUI.shadowColor,
+    shadowOpacity: ScreenUI.shadowOpacity,
+    shadowRadius: ScreenUI.shadowRadius,
+    shadowOffset: ScreenUI.shadowOffset,
+    elevation: ScreenUI.elevation,
   },
 
   // Header Section
@@ -167,7 +157,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.primary,
+    backgroundColor: ScreenUI.primary,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: Spacing.lg,
@@ -176,13 +166,13 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize["2xl"],
     fontWeight: "700",
     letterSpacing: -0.5,
-    color: Colors.darkBlue,
+    color: ScreenUI.textPrimary,
     marginBottom: Spacing.sm,
   },
   subtitle: {
     fontSize: Typography.fontSize.sm,
     fontWeight: "500",
-    color: Colors.textSecondary,
+    color: ScreenUI.textSecondary,
     textAlign: "center",
     lineHeight: 1.5,
   },
@@ -195,7 +185,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontWeight: "700",
     letterSpacing: -0.3,
-    color: Colors.gray600,
+    color: ScreenUI.textPrimary,
     textTransform: "uppercase",
     marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.sm,
@@ -205,7 +195,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: ScreenUI.border,
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
   },
@@ -217,13 +207,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingRight: Spacing.md,
     fontSize: Typography.fontSize.sm,
-    color: Colors.text,
+    color: ScreenUI.textPrimary,
   },
 
   // Send OTP Button
   sendOTPButton: {
     paddingVertical: 16,
-    backgroundColor: Colors.primary,
+    backgroundColor: ScreenUI.primary,
     borderRadius: BorderRadius.lg,
     alignItems: "center",
     marginBottom: Spacing.lg,
@@ -245,25 +235,7 @@ const styles = StyleSheet.create({
   backLink: {
     fontSize: Typography.fontSize.sm,
     fontWeight: "700",
-    color: Colors.primary,
+    color: ScreenUI.primary,
     textDecorationLine: "none",
-  },
-
-  // Footer
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingHorizontal: Spacing.md,
-  },
-  footerLink: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: "700",
-    letterSpacing: -0.2,
-    color: Colors.gray500,
-    textTransform: "uppercase",
   },
 });

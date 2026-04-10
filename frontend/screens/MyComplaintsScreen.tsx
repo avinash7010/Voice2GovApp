@@ -1,470 +1,744 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useFocusEffect, useRouter, type Href } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+    ActivityIndicator,
     FlatList,
     Image,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { BorderRadius, Colors, Spacing, Typography } from "../constants/theme";
-import { ComplaintResponse } from "../types/srs";
+import { EmptyState } from "../components/ui/EmptyState";
+import { Skeleton } from "../components/ui/Skeleton";
+import { Colors } from "../constants/theme";
+import {
+    getComplaintsPage,
+    onComplaintCreated,
+    type ComplaintListItem,
+} from "../services/api";
+import { useComplaintsStore } from "../store/complaintsStore";
 
-interface Complaint extends ComplaintResponse {
-  id: string;
-  title: string;
-  status: "resolved" | "pending" | "in_progress";
-  priority: "High Priority" | "Medium" | "Urgent";
+type FilterType = "all" | "pending" | "resolved" | "in_progress";
+type LoadMode = "replace" | "append";
+
+interface Complaint extends ComplaintListItem {
   issueId: string;
 }
 
-const COMPLAINTS: Complaint[] = [
-  {
-    id: "1",
-    title: "Damaged Pavement Main St.",
-    status: "resolved",
-    priority: "High Priority",
-    issueId: "#8824",
-    description: "Large cracks and uneven pavement causing traffic hazards.",
-    image: "",
-    location: { lat: 28.6139, lng: 77.209 },
-    category: "Infrastructure",
-    department: "Public Works",
-  },
-  {
-    id: "2",
-    title: "Street Light Malfunctioning",
-    status: "pending",
-    priority: "Medium",
-    issueId: "#8821",
-    description: "Street light remains off every night near Block C.",
-    image: "",
-    location: { lat: 28.6149, lng: 77.213 },
-    category: "Electricity",
-    department: "Utility Board",
-  },
-  {
-    id: "3",
-    title: "Waste Collection Overdue",
-    status: "in_progress",
-    priority: "Urgent",
-    issueId: "#8819",
-    description: "Waste bins have not been cleared for 4 days.",
-    image: "",
-    location: { lat: 28.6183, lng: 77.2111 },
-    category: "Sanitation",
-    department: "Municipal",
-  },
-];
+const PAGE_LIMIT = 12;
 
-type FilterType = "all" | "pending" | "resolved" | "in_progress";
+const UI = {
+  background: "#F2F5F9",
+  primary: "#1C4980",
+  border: "#E5E7EB",
+  radius: 12,
+  textPrimary: "#1C1C1C",
+  textSecondary: "#434750",
+  green: "#00A962",
+  orange: "#FF8C00",
+  red: "#E11900",
+  chipGreenBg: "#E6F6EF",
+  chipOrangeBg: "#FFF4E6",
+  chipBlueBg: "#EBF2FA",
+  chipRedBg: "#FFEBE6",
+};
 
-export default function MyComplaintsScreen() {
-  const navigation = useNavigation<any>();
-  const [filter, setFilter] = useState<FilterType>("all");
+const FILTERS: FilterType[] = ["all", "pending", "resolved", "in_progress"];
 
-  const filteredComplaints = COMPLAINTS.filter(
-    (c) => filter === "all" || c.status === filter,
-  );
-
-  const handleComplaintPress = (complaint: Complaint) => {
-    navigation.navigate("ComplaintDetailsScreen", { complaint });
+function toComplaint(item: ComplaintListItem): Complaint {
+  return {
+    ...item,
+    issueId: `#${item.id.slice(-6).toUpperCase()}`,
   };
-
-  return (
-    <View style={styles.wrapper}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <MaterialCommunityIcons
-            name="gavel"
-            size={28}
-            color={Colors.primary}
-          />
-          <Text style={styles.appTitle}>Voice2Gov</Text>
-        </View>
-        <TouchableOpacity style={styles.profileAvatar}>
-          <Image
-            source={{
-              uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuCAAixO86XZXDPNShIxwVu8JAyc6GhtLioGtzAJdPFamZs56f3kf79kQsaDpCDgrOnx_fhnSIVK4gKSTJ7DVtjPsJGAzYNStz7rNi2_vKNRvNjoxb8HbGrkxm14wOjC7WARd1TjFdABHqvNL_g6wQM7OH6U_nJXzDu6hP_eUiKgO7s_bO24W5NzIQVA2mJalXK_4dTg-jgwg2ma_puE6v-LGBqXF1DyTKrwrn25GCjWK6dlWdFxxBMAqInqm1UletZvf55cZ34qyA8",
-            }}
-            style={styles.avatarImage}
-          />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Page Header */}
-        <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>My Complaints</Text>
-          <Text style={styles.pageSubtitle}>
-            Track and manage your civic requests for local improvement.
-          </Text>
-        </View>
-
-        {/* Impact Card */}
-        <View style={styles.impactCard}>
-          <View>
-            <Text style={styles.impactLabel}>Community Impact</Text>
-            <Text style={styles.impactValue}>84%</Text>
-            <Text style={styles.impactSubtext}>
-              Resolution efficiency score
-            </Text>
-          </View>
-          <View style={styles.impactIcon}>
-            <MaterialCommunityIcons
-              name="trending-up"
-              size={28}
-              color={Colors.primary}
-            />
-          </View>
-        </View>
-
-        {/* Filter Chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterContainer}
-        >
-          {(["all", "pending", "resolved", "in_progress"] as FilterType[]).map(
-            (f) => (
-              <TouchableOpacity
-                key={f}
-                style={[
-                  styles.filterChip,
-                  filter === f && styles.filterChipActive,
-                ]}
-                onPress={() => setFilter(f)}
-              >
-                <Text
-                  style={[
-                    styles.filterText,
-                    filter === f && styles.filterTextActive,
-                  ]}
-                >
-                  {f.replace("_", " ")}
-                </Text>
-              </TouchableOpacity>
-            ),
-          )}
-        </ScrollView>
-
-        {/* Complaints List */}
-        <FlatList
-          scrollEnabled={false}
-          data={filteredComplaints}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ComplaintCard
-              complaint={item}
-              onPress={() => handleComplaintPress(item)}
-            />
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
-        />
-      </ScrollView>
-
-      {/* FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate("CreateComplaintScreen")}
-      >
-        <MaterialCommunityIcons name="plus" size={28} color={Colors.white} />
-      </TouchableOpacity>
-    </View>
-  );
 }
 
-function ComplaintCard({
+const ComplaintCard = React.memo(function ComplaintCard({
   complaint,
   onPress,
 }: {
   complaint: Complaint;
   onPress: () => void;
 }) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "resolved":
-        return Colors.success;
-      case "pending":
-        return Colors.warning;
-      case "in_progress":
-        return Colors.secondary;
-      default:
-        return Colors.textSecondary;
-    }
-  };
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUri =
+    !imageFailed &&
+    typeof complaint.imageUrl === "string" &&
+    complaint.imageUrl.trim().length > 0
+      ? complaint.imageUrl
+      : null;
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "High Priority":
-        return Colors.warning;
-      case "Urgent":
-        return Colors.error;
-      default:
-        return Colors.textSecondary;
-    }
-  };
+  const statusStyles =
+    complaint.status === "resolved"
+      ? { bg: UI.chipGreenBg, text: UI.green }
+      : complaint.status === "pending"
+        ? { bg: UI.chipOrangeBg, text: UI.orange }
+        : complaint.status === "in_progress"
+          ? { bg: UI.chipBlueBg, text: UI.primary }
+          : { bg: UI.chipBlueBg, text: UI.textSecondary };
+
+  const priorityValue = String(complaint.priority ?? "Normal");
+  const priorityStyles =
+    priorityValue.toLowerCase() === "high"
+      ? { bg: UI.chipOrangeBg, text: UI.orange }
+      : priorityValue.toLowerCase() === "urgent"
+        ? { bg: UI.chipRedBg, text: UI.red }
+        : { bg: "#EFF1F4", text: UI.textSecondary };
 
   return (
-    <TouchableOpacity style={styles.complaintCard} onPress={onPress}>
+    <TouchableOpacity
+      style={[styles.complaintCard, styles.softShadow]}
+      onPress={onPress}
+    >
       <View style={styles.badgesRow}>
-        <View
-          style={[
-            styles.badge,
-            { backgroundColor: getStatusColor(complaint.status) + "20" },
-          ]}
-        >
-          <Text
-            style={[
-              styles.badgeText,
-              { color: getStatusColor(complaint.status) },
-            ]}
-          >
+        <View style={[styles.badge, { backgroundColor: statusStyles.bg }]}>
+          <Text style={[styles.badgeText, { color: statusStyles.text }]}>
             {complaint.status.replace("_", " ")}
           </Text>
         </View>
-        <View
-          style={[
-            styles.badge,
-            { backgroundColor: getPriorityColor(complaint.priority) + "20" },
-          ]}
-        >
-          <Text
-            style={[
-              styles.badgeText,
-              { color: getPriorityColor(complaint.priority) },
-            ]}
-          >
-            {complaint.priority}
+        <View style={[styles.badge, { backgroundColor: priorityStyles.bg }]}>
+          <Text style={[styles.badgeText, { color: priorityStyles.text }]}>
+            {priorityValue}
           </Text>
         </View>
-        <Text style={styles.issueId}>{complaint.issueId}</Text>
+        <Text style={styles.issueId}>ID: {complaint.issueId}</Text>
       </View>
+
       <Text style={styles.complaintTitle}>{complaint.title}</Text>
+
       <View style={styles.complaintFooter}>
-        <View style={styles.complaintMeta}>
-          <MaterialCommunityIcons
-            name="folder-outline"
-            size={16}
-            color={Colors.textSecondary}
-          />
-          <Text style={styles.metaText}>{complaint.category}</Text>
+        <View style={styles.metaGroup}>
+          <View style={styles.complaintMeta}>
+            <MaterialCommunityIcons
+              name="tag-outline"
+              size={16}
+              color={UI.textSecondary}
+            />
+            <Text style={styles.metaText}>{complaint.category}</Text>
+          </View>
+          <View style={styles.complaintMeta}>
+            <MaterialCommunityIcons
+              name="office-building-outline"
+              size={16}
+              color={UI.textSecondary}
+            />
+            <Text style={styles.metaText}>
+              {String(complaint.department ?? "General")}
+            </Text>
+          </View>
         </View>
-        <View style={styles.complaintMeta}>
+        <View style={styles.trailingSection}>
+          {imageUri ? (
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.previewImage}
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <View style={styles.previewFallback}>
+              <MaterialCommunityIcons
+                name="image-off-outline"
+                size={14}
+                color={UI.textSecondary}
+              />
+            </View>
+          )}
           <MaterialCommunityIcons
-            name="office-building"
-            size={16}
-            color={Colors.textSecondary}
+            name="chevron-right"
+            size={22}
+            color="#C5CBD3"
           />
-          <Text style={styles.metaText}>{complaint.department}</Text>
         </View>
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={20}
-          color={Colors.textTertiary}
-        />
       </View>
     </TouchableOpacity>
+  );
+});
+
+export default function MyComplaintsScreen() {
+  const router = useRouter();
+  const [filter, setFilter] = useState<FilterType>("all");
+  const complaintItems = useComplaintsStore((state) => state.complaints);
+  const setComplaints = useComplaintsStore((state) => state.setComplaints);
+  const prependComplaint = useComplaintsStore(
+    (state) => state.prependComplaint,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState("");
+
+  const complaints = useMemo(
+    () => complaintItems.map(toComplaint),
+    [complaintItems],
+  );
+
+  const filteredComplaints = useMemo(
+    () => complaints.filter((c) => filter === "all" || c.status === filter),
+    [complaints, filter],
+  );
+
+  const loadComplaints = useCallback(
+    async (nextPage: number, mode: LoadMode) => {
+      if (mode === "replace") {
+        setError("");
+      }
+
+      try {
+        if (mode === "replace" && !isRefreshing) {
+          setIsLoading(true);
+        }
+        if (mode === "append") {
+          setIsLoadingMore(true);
+        }
+
+        const result = await getComplaintsPage({
+          page: nextPage,
+          limit: PAGE_LIMIT,
+        });
+
+        setComplaints(result.items, mode);
+        setHasMore(result.hasMore);
+        setPage(nextPage);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load complaints";
+        setError(message.replace(/^API request failed: /, ""));
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+        setIsLoadingMore(false);
+      }
+    },
+    [isRefreshing, setComplaints],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadComplaints(1, "replace");
+    }, [loadComplaints]),
+  );
+
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    void loadComplaints(1, "replace");
+  }, [loadComplaints]);
+
+  const onEndReached = useCallback(() => {
+    if (isLoading || isLoadingMore || !hasMore) {
+      return;
+    }
+
+    void loadComplaints(page + 1, "append");
+  }, [hasMore, isLoading, isLoadingMore, loadComplaints, page]);
+
+  const handleComplaintPress = useCallback(
+    (complaint: Complaint) => {
+      void Haptics.selectionAsync();
+      router.push(`/complaint/${complaint.id}` as Href);
+    },
+    [router],
+  );
+
+  const pendingCount = useMemo(
+    () => complaints.filter((item) => item.status === "pending").length,
+    [complaints],
+  );
+  const resolvedCount = useMemo(
+    () => complaints.filter((item) => item.status === "resolved").length,
+    [complaints],
+  );
+
+  useEffect(() => {
+    const unsubscribe = onComplaintCreated((complaint) => {
+      prependComplaint(complaint);
+    });
+
+    return unsubscribe;
+  }, [prependComplaint]);
+
+  if (isLoading && complaints.length === 0) {
+    return (
+      <SafeAreaView style={styles.wrapper} edges={["bottom"]}>
+        <View style={styles.loadingContent}>
+          <Skeleton style={styles.loadingTitleSkeleton} />
+          <Skeleton style={styles.loadingSubtitleSkeleton} />
+          <Skeleton style={styles.loadingCardSkeleton} />
+          <Skeleton style={styles.loadingCardSkeleton} />
+          <Skeleton style={styles.loadingCardSkeleton} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.wrapper} edges={["bottom"]}>
+      <FlatList
+        data={filteredComplaints}
+        keyExtractor={(item, index) => {
+          if (item.id) return String(item.id);
+          if (item._id) return String(item._id);
+          if (item.createdAt) return `${String(item.createdAt)}-${index}`;
+          return String(index);
+        }}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.35}
+        ListHeaderComponent={
+          <>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <MaterialCommunityIcons
+                  name="gavel"
+                  size={20}
+                  color={UI.primary}
+                />
+                <Text style={styles.appTitle}>Voice2Gov</Text>
+              </View>
+              <View style={[styles.profileAvatar, styles.softShadow]}>
+                <Image
+                  source={{
+                    uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuCAAixO86XZXDPNShIxwVu8JAyc6GhtLioGtzAJdPFamZs56f3kf79kQsaDpCDgrOnx_fhnSIVK4gKSTJ7DVtjPsJGAzYNStz7rNi2_vKNRvNjoxb8HbGrkxm14wOjC7WARd1TjFdABHqvNL_g6wQM7OH6U_nJXzDu6hP_eUiKgO7s_bO24W5NzIQVA2mJalXK_4dTg-jgwg2ma_puE6v-LGBqXF1DyTKrwrn25GCjWK6dlWdFxxBMAqInqm1UletZvf55cZ34qyA8",
+                  }}
+                  style={styles.avatarImage}
+                />
+              </View>
+            </View>
+
+            <View style={styles.pageHeader}>
+              <Text style={styles.pageTitle}>My Complaints</Text>
+              <Text style={styles.pageSubtitle}>
+                Track and manage your civic requests for local improvement.
+              </Text>
+            </View>
+
+            <View style={[styles.impactCard, styles.softShadow]}>
+              <View>
+                <Text style={styles.impactLabel}>Total Filed</Text>
+                <Text style={styles.impactValue}>{complaints.length}</Text>
+                <Text style={styles.impactSubtext}>
+                  {resolvedCount} resolved, {pendingCount} pending
+                </Text>
+              </View>
+              <View style={styles.impactIcon}>
+                <MaterialCommunityIcons
+                  name="clipboard-check-outline"
+                  size={24}
+                  color={UI.primary}
+                />
+              </View>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterContent}
+            >
+              {FILTERS.map((item, index) => (
+                <TouchableOpacity
+                  key={`${item}-${index}`}
+                  style={[
+                    styles.filterChip,
+                    filter === item && styles.filterChipActive,
+                  ]}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    setFilter(item);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      filter === item && styles.filterTextActive,
+                    ]}
+                  >
+                    {item.replace("_", " ")}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {error ? (
+              <View style={styles.errorCard}>
+                <MaterialCommunityIcons
+                  name="alert-circle"
+                  size={24}
+                  color={UI.red}
+                />
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity
+                  style={styles.errorRetryButton}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    void loadComplaints(1, "replace");
+                  }}
+                >
+                  <Text style={styles.errorRetryText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.rowWrap}>
+            <ComplaintCard
+              complaint={item}
+              onPress={() => handleComplaintPress(item)}
+            />
+          </View>
+        )}
+        ListEmptyComponent={
+          !error ? (
+            <EmptyState
+              iconName="clipboard-alert-outline"
+              title={
+                filter !== "all"
+                  ? "No complaints in this status"
+                  : "No complaints yet"
+              }
+              description={
+                filter !== "all"
+                  ? `Try another filter or file a new complaint.`
+                  : "Create your first complaint and track progress here."
+              }
+              actionTitle="Create Complaint"
+              onAction={() => router.push("/create-complaint" as Href)}
+            />
+          ) : null
+        }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={styles.loadingMoreWrap}>
+              <ActivityIndicator size="small" color={UI.primary} />
+            </View>
+          ) : null
+        }
+      />
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => {
+          void Haptics.selectionAsync();
+          router.push("/create-complaint" as Href);
+        }}
+        activeOpacity={0.9}
+      >
+        <MaterialCommunityIcons name="plus" size={30} color={Colors.white} />
+      </TouchableOpacity>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: UI.background,
+  },
+  listContent: {
+    paddingBottom: 110,
+  },
+  rowWrap: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  softShadow: {
+    shadowColor: "#000000",
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
   },
   header: {
+    height: 64,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: UI.border,
+    marginBottom: 14,
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    gap: 8,
   },
   appTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: "700",
-    color: Colors.primary,
+    fontSize: 18,
+    fontWeight: "800",
+    color: UI.primary,
+    letterSpacing: -0.2,
   },
   profileAvatar: {
     width: 40,
     height: 40,
-    borderRadius: BorderRadius.full,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: UI.border,
     overflow: "hidden",
+    backgroundColor: "#FFFFFF",
   },
   avatarImage: {
     width: "100%",
     height: "100%",
   },
-
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 100,
-    paddingHorizontal: Spacing.md,
-  },
-
   pageHeader: {
-    paddingVertical: Spacing.lg,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   pageTitle: {
-    fontSize: Typography.fontSize.xl,
+    fontSize: 24,
     fontWeight: "800",
-    color: Colors.primary,
-    marginBottom: Spacing.xs,
+    color: UI.primary,
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   pageSubtitle: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.textSecondary,
+    fontSize: 12,
+    color: UI.textSecondary,
     fontWeight: "500",
+    lineHeight: 19,
+    maxWidth: 330,
   },
-
   impactCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
+    marginHorizontal: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: UI.radius,
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.lg,
+    borderColor: UI.border,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: Spacing.lg,
+    marginBottom: 14,
   },
   impactLabel: {
-    fontSize: Typography.fontSize.xs,
+    fontSize: 10,
     fontWeight: "700",
-    color: Colors.textSecondary,
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
+    color: "#6B6F76",
+    letterSpacing: 1,
+    marginBottom: 6,
     textTransform: "uppercase",
   },
   impactValue: {
-    fontSize: Typography.fontSize["3xl"],
+    fontSize: 30,
     fontWeight: "900",
-    color: Colors.primary,
-    marginBottom: Spacing.sm,
+    color: UI.primary,
+    marginBottom: 4,
+    letterSpacing: -0.4,
   },
   impactSubtext: {
-    fontSize: Typography.fontSize.xs,
+    fontSize: 10,
     fontWeight: "500",
-    color: Colors.success,
+    color: UI.green,
   },
   impactIcon: {
     width: 56,
     height: 56,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.primary + "20",
+    borderRadius: UI.radius,
+    backgroundColor: UI.chipBlueBg,
     justifyContent: "center",
     alignItems: "center",
   },
-
-  filterContainer: {
-    marginBottom: Spacing.lg,
+  filterContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 8,
   },
   filterChip: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surface,
+    minHeight: 34,
+    paddingHorizontal: 14,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.md,
+    borderColor: UI.border,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   filterChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: UI.primary,
+    borderColor: UI.primary,
   },
   filterText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: "600",
-    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: "700",
+    color: UI.textSecondary,
   },
   filterTextActive: {
-    color: Colors.white,
+    color: "#FFFFFF",
   },
-
   complaintCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: "#FFFFFF",
+    borderRadius: UI.radius,
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.lg,
+    borderColor: UI.border,
+    padding: 14,
   },
   badgesRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: Spacing.md,
+    gap: 8,
+    marginBottom: 8,
   },
   badge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.md,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   badgeText: {
-    fontSize: Typography.fontSize.xs,
+    fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
   },
   issueId: {
-    fontSize: Typography.fontSize.xs,
+    marginLeft: "auto",
+    fontSize: 11,
+    color: UI.textSecondary,
     fontWeight: "700",
-    color: Colors.textSecondary,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
   },
   complaintTitle: {
-    fontSize: Typography.fontSize.base,
-    fontWeight: "700",
-    color: Colors.primary,
-    marginBottom: Spacing.md,
+    fontSize: 16,
+    fontWeight: "800",
+    color: UI.textPrimary,
+    marginBottom: 10,
   },
   complaintFooter: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingTopWidth: 1,
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    justifyContent: "space-between",
+  },
+  trailingSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  previewImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+  },
+  previewFallback: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#EFF1F4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  metaGroup: {
+    gap: 4,
   },
   complaintMeta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.xs,
+    gap: 6,
   },
   metaText: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: "500",
-    color: Colors.textSecondary,
+    fontSize: 12,
+    color: UI.textSecondary,
+    fontWeight: "600",
   },
-
+  centerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  loadingContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 12,
+  },
+  loadingTitleSkeleton: {
+    height: 26,
+    width: "54%",
+    borderRadius: 10,
+  },
+  loadingSubtitleSkeleton: {
+    height: 14,
+    width: "72%",
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  loadingCardSkeleton: {
+    height: 116,
+    width: "100%",
+    borderRadius: 14,
+  },
+  errorCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FAD7D2",
+    backgroundColor: "#FFF6F5",
+    borderRadius: UI.radius,
+    padding: 12,
+    gap: 6,
+  },
+  errorText: {
+    color: UI.red,
+    fontWeight: "600",
+    fontSize: 12,
+  },
+  errorRetryButton: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    minHeight: 32,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: UI.red,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  errorRetryText: {
+    color: UI.red,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  emptyTitle: {
+    marginTop: 8,
+    fontSize: 18,
+    fontWeight: "800",
+    color: UI.textPrimary,
+  },
+  emptyText: {
+    marginTop: 4,
+    fontSize: 13,
+    color: UI.textSecondary,
+    textAlign: "center",
+  },
+  loadingMoreWrap: {
+    paddingVertical: 16,
+  },
   fab: {
     position: "absolute",
-    bottom: 80,
-    right: Spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primary,
-    justifyContent: "center",
+    right: 18,
+    bottom: 20,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: UI.primary,
     alignItems: "center",
-    elevation: 8,
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
 });

@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { type Href, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
     ActivityIndicator,
@@ -12,11 +12,13 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { BorderRadius, Colors, Spacing, Typography } from "../constants/theme";
+import { ScreenUI } from "../constants/ui";
+import { loginUser } from "../services/api";
 
 export default function LoginScreen() {
-  const navigation = useNavigation<any>();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,16 +32,51 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      // Simulate login delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await loginUser({ email: email.trim(), password });
       Alert.alert("Success", "Logged in successfully!");
-      navigation.navigate("DashboardScreen");
-    } catch {
-      // Handle error silently
-      Alert.alert("Login Error", "Failed to login. Please try again");
+      router.replace("/(tabs)/dashboard" as Href);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Login failed";
+
+      // Determine error type and show appropriate alert
+      if (
+        errorMessage.toLowerCase().includes("user") ||
+        errorMessage.toLowerCase().includes("not found")
+      ) {
+        Alert.alert(
+          "User Not Found",
+          "No account exists with this email. Would you like to create one?",
+          [
+            { text: "Cancel", onPress: () => {} },
+            { text: "Register Now", onPress: handleRegister },
+          ],
+        );
+      } else if (
+        errorMessage.toLowerCase().includes("password") ||
+        errorMessage.toLowerCase().includes("invalid")
+      ) {
+        Alert.alert(
+          "Incorrect Password",
+          "The password you entered is incorrect. Please try again.",
+        );
+      } else {
+        Alert.alert(
+          "Login Error",
+          errorMessage || "Failed to login. Please try again",
+        );
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRegister = () => {
+    router.push("/(auth)/register" as Href);
+  };
+
+  const handleForgotPassword = () => {
+    router.push("/(auth)/forgot-password" as Href);
   };
 
   const handleGoogleLogin = () => {
@@ -50,28 +87,19 @@ export default function LoginScreen() {
     Alert.alert("Agency SSO", "Agency SSO login would go here");
   };
 
-  const handleForgotPassword = () => {
-    navigation.navigate("ForgotPasswordScreen");
-  };
-
-  const handleRegister = () => {
-    navigation.navigate("RegistrationScreen");
-  };
-
   return (
-    <View style={styles.wrapper}>
+    <SafeAreaView style={styles.wrapper} edges={["bottom"]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.container}>
-          {/* Branding Section */}
+        <View style={styles.card}>
           <View style={styles.brandingSection}>
             <View style={styles.logoContainer}>
               <MaterialCommunityIcons
-                name="microphone"
+                name="equalizer"
                 size={32}
-                color={Colors.white}
+                color="#FFFFFF"
               />
             </View>
             <Text style={styles.appTitle}>Voice2Gov</Text>
@@ -80,16 +108,14 @@ export default function LoginScreen() {
             </Text>
           </View>
 
-          {/* SSO Login Options */}
           <View style={styles.ssoSection}>
             <TouchableOpacity
               style={styles.ssoButton}
               onPress={handleGoogleLogin}
+              activeOpacity={0.85}
             >
               <Image
-                source={{
-                  uri: "https://www.google.com/favicon.ico",
-                }}
+                source={{ uri: "https://www.google.com/favicon.ico" }}
                 style={styles.ssoIcon}
               />
               <Text style={styles.ssoButtonText}>Login with Google</Text>
@@ -98,38 +124,38 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={styles.ssoButton}
               onPress={handleAgencySSOLogin}
+              activeOpacity={0.85}
             >
               <MaterialCommunityIcons
                 name="bank"
                 size={20}
-                color={Colors.text}
+                color={ScreenUI.primary}
               />
               <Text style={styles.ssoButtonText}>Login via Agency SSO</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Divider */}
           <View style={styles.dividerSection}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>OR</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Email Input */}
           <View style={styles.formGroup}>
-            <Text style={styles.inputLabel}>Email Address</Text>
+            <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
             <View style={styles.inputWrapper}>
               <MaterialCommunityIcons
                 name="email"
-                size={20}
-                color={Colors.textTertiary}
+                size={22}
+                color={ScreenUI.textSecondary}
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="e.g. name@agency.gov"
-                placeholderTextColor={Colors.textDisabled}
+                placeholderTextColor={ScreenUI.textSecondary}
                 keyboardType="email-address"
+                autoCapitalize="none"
                 value={email}
                 onChangeText={setEmail}
                 editable={!loading}
@@ -137,10 +163,9 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Password Input */}
           <View style={styles.formGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.inputLabel}>Password</Text>
+            <View style={styles.passwordLabelRow}>
+              <Text style={styles.inputLabel}>PASSWORD</Text>
               <TouchableOpacity onPress={handleForgotPassword}>
                 <Text style={styles.forgotPasswordLink}>Forgot Password?</Text>
               </TouchableOpacity>
@@ -148,14 +173,14 @@ export default function LoginScreen() {
             <View style={styles.inputWrapper}>
               <MaterialCommunityIcons
                 name="lock"
-                size={20}
-                color={Colors.textTertiary}
+                size={22}
+                color={ScreenUI.textSecondary}
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor={Colors.textDisabled}
+                placeholderTextColor={ScreenUI.textSecondary}
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
@@ -163,254 +188,233 @@ export default function LoginScreen() {
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
-                style={styles.visibilityIcon}
+                activeOpacity={0.8}
               >
                 <MaterialCommunityIcons
-                  name={showPassword ? "eye" : "eye-off"}
-                  size={20}
-                  color={Colors.textTertiary}
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={22}
+                  color={ScreenUI.textSecondary}
                 />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Sign In Button */}
           <TouchableOpacity
-            style={[
-              styles.signInButton,
-              loading && styles.signInButtonDisabled,
-            ]}
+            style={[styles.loginButton, loading && styles.buttonDisabled]}
             onPress={handleLogin}
             disabled={loading}
+            activeOpacity={0.9}
           >
             {loading ? (
-              <ActivityIndicator color={Colors.white} />
+              <ActivityIndicator color={ScreenUI.card} />
             ) : (
-              <Text style={styles.signInButtonText}>Sign In</Text>
+              <Text style={styles.loginButtonText}>Sign In</Text>
             )}
           </TouchableOpacity>
 
-          {/* Register Link */}
           <View style={styles.registerSection}>
             <Text style={styles.registerText}>
               Don&apos;t have an account?{" "}
             </Text>
-            <TouchableOpacity onPress={handleRegister}>
+            <TouchableOpacity onPress={handleRegister} activeOpacity={0.8}>
               <Text style={styles.registerLink}>Register Now</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
 
-      {/* Footer Links */}
-      <View style={styles.footer}>
-        <TouchableOpacity>
-          <Text style={styles.footerLink}>Privacy Policy</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.footerLink}>Civic Standards</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.footerLink}>Support</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        <View style={styles.footerLinks}>
+          <Text style={styles.footerLinkText}>PRIVACY POLICY</Text>
+          <Text style={styles.footerLinkText}>CIVIC STANDARDS</Text>
+          <Text style={styles.footerLinkText}>SUPPORT</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: ScreenUI.background,
+    justifyContent: "center",
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.lg,
+    paddingHorizontal: ScreenUI.pagePaddingHorizontal,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
-  container: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing["2xl"],
-    borderWidth: 1,
-    borderColor: Colors.border,
+  card: {
     width: "100%",
+    maxWidth: 480,
     alignSelf: "center",
+    backgroundColor: ScreenUI.card,
+    borderRadius: ScreenUI.radiusLg,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 16,
+    borderWidth: 1,
+    borderColor: ScreenUI.border,
+    shadowColor: ScreenUI.shadowColor,
+    shadowOpacity: ScreenUI.shadowOpacity,
+    shadowRadius: ScreenUI.shadowRadius,
+    shadowOffset: ScreenUI.shadowOffset,
+    elevation: ScreenUI.elevation,
   },
-
-  // Branding
   brandingSection: {
     alignItems: "center",
-    marginBottom: Spacing["2xl"],
+    marginBottom: 20,
   },
   logoContainer: {
     width: 56,
     height: 56,
-    borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.primary,
+    borderRadius: ScreenUI.radius,
+    backgroundColor: ScreenUI.primary,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: Spacing.lg,
+    marginBottom: 10,
   },
   appTitle: {
-    fontSize: Typography.fontSize["2xl"],
-    fontWeight: "700",
-    letterSpacing: -0.5,
-    color: Colors.darkBlue,
-    marginBottom: Spacing.sm,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: "800",
+    color: ScreenUI.textPrimary,
+    marginBottom: 4,
+    maxWidth: "100%",
+    textAlign: "center",
+    flexShrink: 1,
   },
   appSubtitle: {
-    fontSize: Typography.fontSize.sm,
+    fontSize: 14,
+    lineHeight: 18,
+    color: ScreenUI.textSecondary,
     fontWeight: "500",
-    color: Colors.textSecondary,
     textAlign: "center",
   },
-
-  // SSO Buttons
   ssoSection: {
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: 10,
+    marginBottom: 16,
   },
   ssoButton: {
+    minHeight: ScreenUI.buttonHeight,
+    borderWidth: 1,
+    borderColor: ScreenUI.border,
+    borderRadius: ScreenUI.radius,
+    backgroundColor: ScreenUI.card,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.md,
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.surface,
+    gap: 10,
   },
   ssoIcon: {
     width: 20,
     height: 20,
   },
   ssoButtonText: {
-    fontSize: Typography.fontSize.sm,
+    fontSize: 15,
     fontWeight: "600",
-    color: Colors.gray700,
+    color: ScreenUI.textPrimary,
   },
-
-  // Divider
   dividerSection: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: 12,
+    marginBottom: 16,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: ScreenUI.border,
   },
   dividerText: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    color: Colors.textTertiary,
+    fontSize: 13,
+    color: ScreenUI.textSecondary,
+    fontWeight: "600",
   },
-
-  // Form Groups
   formGroup: {
-    marginBottom: Spacing.xl,
+    marginBottom: 12,
   },
-  labelRow: {
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: ScreenUI.textPrimary,
+    marginBottom: 8,
+    textTransform: "uppercase",
+  },
+  passwordLabelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-  },
-  inputLabel: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-    color: Colors.gray600,
-    textTransform: "uppercase",
+    marginBottom: 8,
   },
   forgotPasswordLink: {
-    fontSize: Typography.fontSize.xs,
+    fontSize: 14,
     fontWeight: "700",
-    color: Colors.primary,
-    textDecorationLine: "none",
+    color: ScreenUI.primary,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.md,
+    borderColor: ScreenUI.border,
+    borderRadius: ScreenUI.radius,
+    paddingHorizontal: 14,
+    minHeight: ScreenUI.buttonHeight,
+    backgroundColor: ScreenUI.card,
   },
   inputIcon: {
-    marginRight: Spacing.sm,
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    paddingVertical: 14,
-    paddingRight: Spacing.md,
-    fontSize: Typography.fontSize.sm,
-    color: Colors.text,
+    fontSize: 14,
+    color: ScreenUI.textPrimary,
+    backgroundColor: ScreenUI.card,
+    paddingVertical: 10,
   },
-  visibilityIcon: {
-    padding: Spacing.sm,
-  },
-
-  // Sign In Button
-  signInButton: {
-    paddingVertical: 16,
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
+  loginButton: {
+    marginTop: 8,
+    minHeight: 52,
+    borderRadius: ScreenUI.radius,
+    backgroundColor: ScreenUI.primary,
     alignItems: "center",
-    marginBottom: Spacing.lg,
+    justifyContent: "center",
+    marginBottom: 16,
   },
-  signInButtonDisabled: {
-    opacity: 0.6,
-  },
-  signInButtonText: {
-    fontSize: Typography.fontSize.base,
+  loginButtonText: {
+    color: ScreenUI.card,
+    fontSize: 16,
     fontWeight: "700",
-    color: Colors.white,
   },
-
-  // Register Section
+  buttonDisabled: {
+    opacity: 0.65,
+  },
   registerSection: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: Spacing.lg,
+    marginBottom: 4,
   },
   registerText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: "500",
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: ScreenUI.textPrimary,
   },
   registerLink: {
-    fontSize: Typography.fontSize.sm,
+    fontSize: 14,
     fontWeight: "700",
-    color: Colors.primary,
-    textDecorationLine: "underline",
+    color: ScreenUI.primary,
   },
-
-  // Footer
-  footer: {
+  footerLinks: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingHorizontal: Spacing.md,
+    gap: 20,
+    marginTop: 14,
   },
-  footerLink: {
-    fontSize: Typography.fontSize.xs,
+  footerLinkText: {
+    fontSize: 10,
+    color: ScreenUI.textSecondary,
     fontWeight: "700",
-    letterSpacing: -0.2,
-    color: Colors.gray500,
     textTransform: "uppercase",
   },
 });

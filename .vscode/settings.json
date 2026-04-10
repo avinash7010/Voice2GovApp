@@ -3,5 +3,8 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
-  }
+  },
+  "java.compile.nullAnalysis.mode": "automatic",
+  "python-envs.defaultEnvManager": "ms-python.python:system",
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

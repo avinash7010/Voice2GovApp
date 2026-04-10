@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Optional
 from bson import ObjectId
 from pydantic import BaseModel, Field
+from app.models.complaint_category import ComplaintCategory
 
 
 class ComplaintStatus(str, Enum):
@@ -14,14 +15,6 @@ class ComplaintStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     RESOLVED    = "resolved"
     REJECTED    = "rejected"
-
-
-class ComplaintCategory(str, Enum):
-    ELECTRICITY = "electricity"
-    WATER       = "water"
-    ROAD        = "road"
-    GARBAGE     = "garbage"
-    OTHER       = "other"
 
 
 class ComplaintPriority(str, Enum):
@@ -41,9 +34,10 @@ class ComplaintModel(BaseModel):
     """Represents a Complaint document as stored in MongoDB."""
     id: Optional[str]           = Field(default=None, alias="_id")
     userId: str                                        # ObjectId as string
+    title: Optional[str] = None
     description: str
+    push_token: Optional[str]   = None
     imageUrl: Optional[str]     = None                 # Cloudinary/S3/local URL
-    image: Optional[str]        = None                 # legacy base64 (deprecated)
     audio: Optional[str]        = None                 # transcribed text / file path
     location: Optional[LocationModel] = None
     clusterId: Optional[str]    = None                 # geo cluster bucket id
@@ -54,6 +48,8 @@ class ComplaintModel(BaseModel):
     confidence: float           = 0.0                  # AI classification confidence
     isUrgent: bool              = False                 # urgency keyword detected
     urgencyKeywords: list       = Field(default_factory=list)
+    isDuplicate: bool           = False
+    parentComplaintId: Optional[str] = None
     votes: int                  = 0
     voters: list                = Field(default_factory=list)
     assignedTo: Optional[str]   = None                # authority userId
@@ -68,28 +64,118 @@ class ComplaintModel(BaseModel):
         json_encoders = {ObjectId: str}
 
 
-def complaint_helper(complaint: dict) -> dict:
-    """Convert a raw MongoDB complaint document to a serialisable dict."""
-    location = complaint.get("location")
-    return {
-        "id":               str(complaint["_id"]),
-        "userId":           str(complaint.get("userId", "")),
-        "description":      complaint.get("description", ""),
-        "imageUrl":         complaint.get("imageUrl") or complaint.get("image"),  # backward compat
-        "audio":            complaint.get("audio"),
-        "location":         location,
-        "clusterId":        complaint.get("clusterId"),
-        "category":         complaint.get("category", "other"),
-        "department":       complaint.get("department", "General"),
-        "status":           complaint.get("status", "pending"),
-        "priority":         complaint.get("priority", "low"),
-        "confidence":       complaint.get("confidence", 0.0),
-        "isUrgent":         complaint.get("isUrgent", False),
-        "urgencyKeywords":  complaint.get("urgencyKeywords", []),
-        "votes":            complaint.get("votes", 0),
-        "assignedTo":       complaint.get("assignedTo"),
-        "adminNotes":       complaint.get("adminNotes"),
-        "resolvedAt":       complaint.get("resolvedAt"),
-        "createdAt":        complaint.get("createdAt"),
-        "updatedAt":        complaint.get("updatedAt"),
+def ensure_title(complaint: dict) -> dict:
+    """Ensure a complaint has a short title derived from its description."""
+    title = (complaint.get("title") or "").strip()
+    if title:
+        complaint["title"] = title
+        return complaint
+
+    description = (complaint.get("description") or "").strip()
+    complaint["title"] = description[:60] if description else "Complaint"
+    return complaint
+
+
+def _extract_coordinates(location) -> tuple[Optional[float], Optional[float]]:
+    """Extract latitude and longitude from location data.
+    
+    Returns:
+        Tuple of (latitude, longitude) or (None, None) if not found
+    """
+    if not location:
+        return None, None
+    
+    if isinstance(location, dict):
+        # Try to get lat/lng from the dict
+        lat = location.get("lat") or location.get("latitude")
+        lng = location.get("lng") or location.get("longitude")
+        
+        if lat is not None and lng is not None:
+            try:
+                return float(lat), float(lng)
+            except (ValueError, TypeError):
+                pass
+    
+    return None, None
+
+
+def _format_location(location) -> str:
+    """Convert stored location payload into a flat human-readable string."""
+    if not location:
+        return "Unknown"
+
+    if isinstance(location, str):
+        cleaned = location.strip()
+        return cleaned or "Unknown"
+
+    if isinstance(location, dict):
+        address = str(location.get("address") or "").strip()
+        if address:
+            return address
+
+        lat = location.get("lat") or location.get("latitude")
+        lng = location.get("lng") or location.get("longitude")
+        if lat is not None and lng is not None:
+            return f"{lat}, {lng}"
+
+    return str(location).strip() or "Unknown"
+
+
+def _format_datetime(value) -> Optional[str]:
+    if value is None:
+        return datetime.now(timezone.utc).isoformat()
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
+def _stringify(value, fallback: str) -> str:
+    if value is None:
+        return fallback
+    return str(getattr(value, "value", value))
+
+
+def normalize_complaint(obj: dict) -> dict:
+    """Normalize a complaint document into the standard flat API payload."""
+    complaint = ensure_title(dict(obj or {}))
+    created_at = _format_datetime(complaint.get("createdAt") or complaint.get("created_at"))
+    location_data = complaint.get("location")
+    latitude, longitude = _extract_coordinates(location_data)
+    
+    response = {
+        "id": str(complaint.get("_id") or complaint.get("id") or ""),
+        "title": complaint.get("title", "Complaint"),
+        "description": complaint.get("description", ""),
+        "category": _stringify(complaint.get("category"), "other"),
+        "department": complaint.get("department", "General"),
+        "priority": _stringify(complaint.get("priority"), "low"),
+        "location": _format_location(location_data),
+        "status": _stringify(complaint.get("status"), "pending"),
+        "created_at": created_at,
+        "isDuplicate": bool(complaint.get("isDuplicate", False)),
+        "parentComplaintId": complaint.get("parentComplaintId"),
     }
+    
+    # Include numeric coordinates if available
+    if latitude is not None:
+        response["latitude"] = latitude
+    if longitude is not None:
+        response["longitude"] = longitude
+    
+    # Include image URL if available. Support common legacy keys.
+    image_url = (
+        complaint.get("imageUrl")
+        or complaint.get("image_url")
+        or complaint.get("image")
+    )
+    if image_url:
+        response["imageUrl"] = image_url
+        response["image_url"] = image_url
+        response["image"] = image_url
+    
+    return response
+
+
+def complaint_helper(complaint: dict) -> dict:
+    """Backward-compatible alias for normalized complaint payloads."""
+    return normalize_complaint(complaint)

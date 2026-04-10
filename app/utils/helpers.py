@@ -34,12 +34,38 @@ def stringify_id(doc: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Standard API response builders
 # ---------------------------------------------------------------------------
-def success_response(data=None, message: str = "Success") -> dict:
-    return {"success": True, "message": message, "data": data}
+def success_response(
+    data=None,
+    message: Optional[str] = None,
+    legacy_fields: Optional[dict] = None,
+) -> dict:
+    """
+    Standard success envelope with optional legacy top-level fields.
+
+    `legacy_fields` lets routes keep older response keys for compatibility
+    while still returning the standard shape.
+    """
+    response = {
+        "success": True,
+        "data": data,
+    }
+    if message is not None:
+        response["message"] = message
+    if legacy_fields:
+        response.update(legacy_fields)
+    return response
 
 
-def error_response(message: str, data=None) -> dict:
-    return {"success": False, "message": message, "data": data}
+def error_response(message: str, code: str = "ERROR") -> dict:
+    return {
+        "success": False,
+        "message": message,
+        "data": None,
+        "error": {
+            "message": message,
+            "code": code,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------

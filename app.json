@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Voice2Gov",
+    "slug": "voice2gov",
+    "icon": "./assets/icon.png",
+    "plugins": ["expo-secure-store"],
+    "extra": {
+      "eas": {
+        "projectId": "c530a2d3-c4dd-4e7c-9601-fc53809f4ee6"
+      }
+    },
+    "android": {
+      "package": "com.avinash.voice2gov",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#1E3A8A"
+      }
+    }
+  }
+}

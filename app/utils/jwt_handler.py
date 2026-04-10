@@ -11,6 +11,7 @@ from app.config.settings import settings
 
 # Reusable bearer scheme
 bearer_scheme = HTTPBearer()
+bearer_scheme_optional = HTTPBearer(auto_error=False)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -55,3 +56,15 @@ async def get_current_user_payload(
 ) -> dict:
     """FastAPI dependency: validate JWT and return the decoded payload."""
     return decode_access_token(credentials.credentials)
+
+
+async def get_optional_user_payload(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme_optional),
+) -> Optional[dict]:
+    """Return decoded JWT payload when present, otherwise None."""
+    if credentials is None:
+        return None
+    try:
+        return decode_access_token(credentials.credentials)
+    except HTTPException:
+        return None

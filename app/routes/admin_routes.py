@@ -41,15 +41,26 @@ async def require_admin(payload: dict = Depends(get_current_user_payload)):
 )
 async def list_users(
     page: int  = Query(1,  ge=1),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=100),
+    legacy: bool = Query(False, description="Return legacy wrapped response"),
     _: dict = Depends(require_admin),
 ):
     params = paginate_params(page, limit)
     users  = await user_repo.find_all(skip=params["skip"], limit=params["limit"])
     total  = await user_repo.count()
-    return success_response(
-        data={"users": [user_helper(u) for u in users], "total": total, "page": page}
-    )
+    user_items = [user_helper(u) for u in users]
+    if legacy:
+        return success_response(
+            data={"users": user_items, "total": total, "page": page}
+        )
+    payload = {
+        "data": user_items,
+        "page": page,
+        "limit": params["limit"],
+        "total": total,
+        "users": user_items,
+    }
+    return success_response(data=payload, message="Users retrieved", legacy_fields=payload)
 
 
 # ---------------------------------------------------------------------------
@@ -98,11 +109,12 @@ async def delete_user(
 )
 async def admin_list_complaints(
     page: int       = Query(1,  ge=1),
-    limit: int      = Query(50, ge=1, le=200),
+    limit: int      = Query(50, ge=1, le=100),
     status_filter: str  = Query(None, alias="status"),
     category: str   = Query(None),
     department: str = Query(None),
     priority: str   = Query(None),
+    legacy: bool    = Query(False, description="Return legacy wrapped response"),
     _: dict = Depends(require_admin),
 ):
     filters: dict = {}
@@ -120,9 +132,18 @@ async def admin_list_complaints(
         filters=filters, skip=params["skip"], limit=params["limit"]
     )
     total = await complaint_repo.count(filters)
-    return success_response(
-        data={"complaints": complaints, "total": total, "page": page}
-    )
+    if legacy:
+        return success_response(
+            data={"complaints": complaints, "total": total, "page": page}
+        )
+    payload = {
+        "data": complaints,
+        "page": page,
+        "limit": params["limit"],
+        "total": total,
+        "complaints": complaints,
+    }
+    return success_response(data=payload, message="Complaints retrieved", legacy_fields=payload)
 
 
 # ---------------------------------------------------------------------------

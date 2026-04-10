@@ -16,13 +16,14 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from app.config.database import get_complaints_collection
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 # Size of each grid cell in degrees (~1 km)
 GRID_CELL_DEG = 0.009
 HOTSPOT_THRESHOLD = 3        # min complaints in a cell to declare hotspot
-NEARBY_RADIUS_DEG = 0.009    # search radius for nearby complaints
+NEARBY_RADIUS_DEG = settings.DUPLICATE_NEARBY_RADIUS_DEG    # search radius for nearby complaints
 
 
 def _cluster_id(lat: float, lng: float) -> str:

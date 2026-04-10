@@ -63,7 +63,7 @@ async def client():
 @pytest_asyncio.fixture(scope="session")
 async def registered_user(client):
     """Register a fresh citizen user and return the response JSON."""
-    resp = await client.post("/api/auth/register", json={
+    resp = await client.post("/api/v1/auth/register", json={
         "name":     "Test Citizen",
         "email":    "testcitizen@example.com",
         "password": "Test@12345",

@@ -4,9 +4,10 @@ Auth Routes – /api/auth
   POST /login     – login and get JWT
   GET  /me        – return current user profile
 """
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, Request
 from app.services.auth_service import auth_service
 from app.schemas.user_schema import UserRegisterSchema, UserLoginSchema
+from app.config.rate_limiter import limiter
 from app.utils.jwt_handler import get_current_user_payload
 from app.utils.helpers import success_response
 
@@ -32,7 +33,8 @@ async def register(payload: UserRegisterSchema):
     "/login",
     summary="Login and obtain JWT",
 )
-async def login(payload: UserLoginSchema):
+@limiter.limit("5/minute")
+async def login(request: Request, payload: UserLoginSchema):
     """Authenticates credentials and returns a signed JWT."""
     result = await auth_service.login(payload)
     return success_response(data=result, message="Login successful")
