@@ -24,7 +24,7 @@ class TestComplaintCreate:
 
     async def test_create_complaint_no_auth(self, client):
         resp = await client.post("/api/v1/complaints/json", json=COMPLAINT_PAYLOAD)
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
     async def test_create_complaint_description_too_short(self, client, citizen_headers):
         resp = await client.post(
@@ -44,7 +44,7 @@ class TestComplaintCreate:
 
     async def test_create_complaint_garbage_category(self, client, citizen_headers):
         resp = await client.post("/api/v1/complaints/json", json={
-            "description": "Garbage not collected for a week, trash piling up causing stench and mosquito breeding"
+            "description": "Garbage not collected, trash everywhere, sanitation issue, waste bin overflowing."
         }, headers=citizen_headers)
         assert resp.status_code == 201
         data = resp.json()

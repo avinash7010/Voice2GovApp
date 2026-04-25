@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
@@ -21,7 +21,7 @@ export function Skeleton({ style }: SkeletonProps) {
       -1,
       true
     );
-  }, []);
+  }, [opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

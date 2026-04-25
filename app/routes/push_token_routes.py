@@ -1,6 +1,7 @@
 """Routes for registering Expo push tokens."""
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.utils.jwt_handler import get_current_user_payload
 
 from app.services.notifications_service import push_tokens
 from app.utils.helpers import success_response
@@ -12,8 +13,8 @@ class PushTokenRegisterSchema(BaseModel):
     token: str = Field(..., min_length=1)
 
 
-@router.post("/register-push-token", summary="Register an Expo push token")
-async def register_push_token(payload: PushTokenRegisterSchema):
+@router.post("/push-token", summary="Register an Expo push token")
+async def register_push_token(payload: PushTokenRegisterSchema, current_user: dict = Depends(get_current_user_payload)):
     token = payload.token.strip()
     if not token:
         raise HTTPException(

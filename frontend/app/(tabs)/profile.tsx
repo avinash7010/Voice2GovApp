@@ -17,7 +17,7 @@ import { useAuthStore } from "../../store/authStore";
 import { ScreenUI } from "../../constants/ui";
 
 const DEFAULT_AVATAR_URL =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuCAAixO86XZXDPNShIxwVu8JAyc6GhtLioGtzAJdPFamZs56f3kf79kQsaDpCDgrOnx_fhnSIVK4gKSTJ7DVtjPsJGAzYNStz7rNi2_vKNRvNjoxb8HbGrkxm14wOjC7WARd1TjFdABHqvNL_g6wQM7OH6U_nJXzDu6hP_eUiKgO7s_bO24W5NzIQVA2mJalXK_4dTg-jgwg2ma_puE6v-LGBqXF1DyTKrwrn25GCjWK6dlWdFxxBMAqInqm1UletZvf55cZ34qyA8";
+  "https://ui-avatars.com/api/?name=User&background=1C4980&color=fff";
 
 const UI = {
   background: ScreenUI.background,

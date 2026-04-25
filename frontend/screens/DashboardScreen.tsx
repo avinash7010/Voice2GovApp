@@ -323,7 +323,7 @@ export default function DashboardScreen() {
               <View style={[styles.profileAvatar, styles.softShadow]}>
                 <Image
                   source={{
-                    uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuD4E-e4xumwaDTxi-Q-qogilKoTVGzxQCHXNb_EMziBGoYfvESf9BlYgd6Gp1Y2Y2Nwu9u3CFTKCnMXlcpOAgbYmIAOStGvMCGdpNveYdO0EWsZaB5r3fVxB_K3jzvd9m9R0vMprY4Z2e0BHvYl52pUa6i-fvFN-ft59MHycWkYwOtU13sxWPsa7YU7eGTamngCYW2p3jSELhb3-emvQeom12NsTTcfL54RJLMvVgfLrgtnPBCxmaq04l5ElIWIiwF05abl8X5Solg",
+                    uri: "https://ui-avatars.com/api/?name=User&background=1C4980&color=fff",
                   }}
                   style={styles.avatarImage}
                 />

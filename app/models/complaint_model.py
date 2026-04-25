@@ -123,7 +123,7 @@ def _format_location(location) -> str:
 
 def _format_datetime(value) -> Optional[str]:
     if value is None:
-        return datetime.now(timezone.utc).isoformat()
+        return None
     if isinstance(value, datetime):
         return value.isoformat()
     return str(value)
@@ -154,6 +154,11 @@ def normalize_complaint(obj: dict) -> dict:
         "created_at": created_at,
         "isDuplicate": bool(complaint.get("isDuplicate", False)),
         "parentComplaintId": complaint.get("parentComplaintId"),
+        "votes": complaint.get("votes", 0),
+        "confidence": complaint.get("confidence", 0.0),
+        "isUrgent": complaint.get("isUrgent", False),
+        "updatedAt": _format_datetime(complaint.get("updatedAt") or complaint.get("updated_at")),
+
     }
     
     # Include numeric coordinates if available

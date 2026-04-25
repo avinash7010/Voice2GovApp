@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 import type { ComplaintPayload } from "./api";
 
@@ -22,11 +22,11 @@ export async function saveComplaintDraft(
     createdAt: Date.now(),
   };
 
-  await AsyncStorage.setItem(DRAFT_COMPLAINT_KEY, JSON.stringify(payload));
+  await SecureStore.setItemAsync(DRAFT_COMPLAINT_KEY, JSON.stringify(payload));
 }
 
 export async function getComplaintDraft(): Promise<ComplaintDraft | null> {
-  const raw = await AsyncStorage.getItem(DRAFT_COMPLAINT_KEY);
+  const raw = await SecureStore.getItemAsync(DRAFT_COMPLAINT_KEY);
   if (!raw) {
     return null;
   }
@@ -58,5 +58,5 @@ export async function getComplaintDraft(): Promise<ComplaintDraft | null> {
 }
 
 export async function clearComplaintDraft(): Promise<void> {
-  await AsyncStorage.removeItem(DRAFT_COMPLAINT_KEY);
+  await SecureStore.deleteItemAsync(DRAFT_COMPLAINT_KEY);
 }

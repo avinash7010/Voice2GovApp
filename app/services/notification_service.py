@@ -33,15 +33,28 @@ sio = socketio.AsyncServer(
 # Socket.IO event handlers
 # ---------------------------------------------------------------------------
 @sio.event
+
 async def connect(sid, environ, auth):
     """
     Client connected.
-    auth dict may contain:
-      - userId      → joins personal room
-      - department  → joins department room
+    Requires a valid JWT token in auth["token"].
     """
-    user_id    = (auth or {}).get("userId")
+    from app.utils.jwt_handler import decode_access_token
+    from fastapi import HTTPException
+
+    token = (auth or {}).get("token")
+    if not token:
+        raise socketio.exceptions.ConnectionRefusedError('Authentication required')
+
+    try:
+        payload = decode_access_token(token)
+        user_id = payload.get("sub")
+    except HTTPException:
+        raise socketio.exceptions.ConnectionRefusedError('Invalid token')
+
     department = (auth or {}).get("department")
+
+
 
     if user_id:
         await sio.enter_room(sid, user_id)

@@ -32,7 +32,7 @@ class ComplaintService:
     async def create_structured_complaint(
         self,
         payload: ComplaintSubmitSchema,
-        user_id: str = "anonymous",
+        user_id: str,
         image_file: Optional[UploadFile] = None,
     ) -> dict:
         """Persist a structured complaint payload with optional image upload and return the normalized complaint."""
@@ -281,7 +281,24 @@ class ComplaintService:
         if not existing:
             raise HTTPException(status_code=404, detail="Complaint not found")
 
+
+        # Verify state transition
+        current_status = existing.get("status")
+        new_status = payload.status.value
+
+        valid_transitions = {
+            "pending": ["in_progress", "rejected"],
+            "in_progress": ["resolved", "rejected"],
+            "resolved": [],
+            "rejected": [],
+        }
+
+        if current_status and new_status not in valid_transitions.get(current_status, []):
+            if current_status != new_status: # Ignore if same status
+                raise HTTPException(status_code=400, detail=f"Invalid state transition from {current_status} to {new_status}")
+
         updated = await complaint_repo.update_status(
+
             complaint_id,
             payload.status.value,
             admin_notes=payload.admin_notes,

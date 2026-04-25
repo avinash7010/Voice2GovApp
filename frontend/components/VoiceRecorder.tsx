@@ -29,7 +29,7 @@ export function VoiceRecorder({
   const recordingRef = useRef<Audio.Recording | null>(null);
   const isStoppingRef = useRef(false);
   const isUnmountedRef = useRef(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [, setRecording] = useState<Audio.Recording | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
@@ -101,7 +101,6 @@ export function VoiceRecorder({
           try {
             await activeRecording.stopAndUnloadAsync();
           } catch {
-            console.log("Already stopped");
           }
         }
 

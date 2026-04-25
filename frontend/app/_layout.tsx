@@ -34,7 +34,6 @@ class AppErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: unknown) {
-    console.error("[startup] ErrorBoundary captured render error", error);
   }
 
   render() {
@@ -61,18 +60,14 @@ export default function RootLayout() {
 
   const bootstrapAuth = useCallback(async () => {
     try {
-      console.log("[startup] Loading auth session...");
       setStartupError(null);
       await loadUserFromToken();
-      console.log("[startup] Auth session loaded");
-    } catch (error) {
-      console.error("[startup] Failed to load auth session", error);
+    } catch {
       setStartupError("Unable to initialize app session");
     }
   }, [loadUserFromToken]);
 
   useEffect(() => {
-    console.log("[startup] RootLayout mounted");
     if (isExpoGo) {
       console.info("Notifications disabled in Expo Go");
     }
@@ -90,14 +85,11 @@ export default function RootLayout() {
 
     try {
       if (hasToken && inAuthGroup) {
-        console.log("[startup] Redirecting authenticated user to dashboard");
         router.replace("/(tabs)/dashboard");
       } else if (!hasToken && !inAuthGroup) {
-        console.log("[startup] Redirecting unauthenticated user to login");
         router.replace("/(auth)/login");
       }
-    } catch (error) {
-      console.error("[startup] Navigation redirect failed", error);
+    } catch {
       setStartupError("Unable to navigate to the initial screen");
     }
   }, [isLoading, token, segments]);

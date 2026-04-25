@@ -1,6 +1,7 @@
 """Route for generating structured complaints from raw transcribed text."""
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.utils.jwt_handler import get_current_user_payload
 
 from app.services.complaint_generator_service import generate_complaint
 from app.utils.helpers import success_response
@@ -15,8 +16,8 @@ class GenerateComplaintRequest(BaseModel):
     text: str = Field(..., min_length=1, description="Raw transcribed complaint text")
 
 
-@router.post("/generate-complaint", summary="Generate structured complaint from text")
-async def generate_complaint_route(payload: GenerateComplaintRequest):
+@router.post("/complaints/generate", summary="Generate structured complaint from text")
+async def generate_complaint_route(payload: GenerateComplaintRequest, current_user: dict = Depends(get_current_user_payload)):
     """Convert plain complaint text to structured complaint metadata."""
     try:
         result = generate_complaint(payload.text)

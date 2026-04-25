@@ -29,7 +29,6 @@ export function usePushNotifications() {
   const registeredTokenRef = useRef<string>("");
 
   useEffect(() => {
-    console.log("[startup] Push notification bootstrap started");
 
     if (shouldDisablePushNotifications) {
       console.info("Notifications disabled in Expo Go");
@@ -44,7 +43,6 @@ export function usePushNotifications() {
 
     const configureNotifications = async () => {
       try {
-        console.log("[startup] Loading expo-notifications module");
         const notifications = await import("expo-notifications");
         if (!isMounted) {
           return;
@@ -79,7 +77,6 @@ export function usePushNotifications() {
           );
         }
 
-        console.log("[startup] Requesting Expo push token");
         const pushToken = await notifications.getExpoPushTokenAsync({
           projectId,
         });
@@ -100,7 +97,6 @@ export function usePushNotifications() {
           }
         }
 
-        console.log("[startup] Push notification bootstrap completed");
 
         receivedListenerRef.current =
           notifications.addNotificationReceivedListener(() => {
