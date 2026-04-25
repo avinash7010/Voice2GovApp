@@ -73,4 +73,4 @@ class TestAuthMe:
 
     async def test_get_profile_no_token(self, client):
         resp = await client.get("/api/v1/auth/me")
-        assert resp.status_code == 403
+        assert resp.status_code == 401

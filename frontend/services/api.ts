@@ -37,7 +37,6 @@ function resolveBaseUrl(): string {
     return `${protocol}://${hostname}:8000`;
   }
 
-  console.log("[startup] Using default API base URL", DEFAULT_NATIVE_BASE_URL);
   return DEFAULT_NATIVE_BASE_URL;
 }
 
@@ -51,12 +50,12 @@ const ENDPOINTS = {
   legacyHealth: "/health",
   voice: `${API_PREFIX}/voice`,
   voiceUpload: `${API_PREFIX}/voice/upload`,
-  submitComplaint: `${API_PREFIX}/submit-complaint`,
+  submitComplaint: `${API_PREFIX}/complaints`,
   complaints: `${API_PREFIX}/complaints/user`,
   feed: `${API_PREFIX}/complaints/feed`,
   complaintById: (id: string) => `${API_PREFIX}/complaints/${id}`,
   notifications: `${API_PREFIX}/notifications`,
-  registerPushToken: `${API_PREFIX}/register-push-token`,
+  registerPushToken: `${API_PREFIX}/push-token`,
 } as const;
 
 type HttpMethod = "GET" | "POST";
@@ -957,8 +956,6 @@ export async function submitComplaint<T = SubmitComplaintResponse>(
   imageUri?: string | null,
 ): Promise<T> {
   const normalizedCategory = normalizeComplaintCategory(data.category);
-  console.log("Original:", data.category);
-  console.log("Normalized:", normalizedCategory);
 
   const formData = new FormData();
   formData.append("title", data.title);

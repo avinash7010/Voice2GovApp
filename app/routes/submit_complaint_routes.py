@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/submit-complaint",
+    "/complaints",
     summary="Submit a structured complaint",
     response_model=dict,
 )
